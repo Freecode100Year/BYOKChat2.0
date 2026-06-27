@@ -1,0 +1,17 @@
+{
+  "name": "AI Chat",
+  "short_name": "AI Chat",
+  "description": "匿名 · 纯自带 Key 的 AI 聊天站",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0e1014",
+  "theme_color": "#0e1014",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='40' fill='%235ec8c0'/%3E%3Ctext x='96' y='130' font-size='90' font-family='system-ui' font-weight='bold' fill='%230e1014' text-anchor='middle'%3EAI%3C/text%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
