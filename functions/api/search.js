@@ -27,5 +27,5 @@ export async function onRequestPost(context) {
     if (!r.ok) return json({ error: { message: (data && (data.error || data.detail || data.message)) || ("搜索失败 " + r.status) } }, r.status);
     const results = (data.results || []).map(x => ({ title: x.title || "", url: x.url || "", content: (x.content || "").toString().slice(0, 1200) }));
     return json({ results });
-  } catch (e) { return json({ error: { message: "搜索请求失败：" + e.message } }, 502); }
+  } catch (e) { console.error("search error:", e); return json({ error: { message: "搜索请求失败，请稍后重试。" } }, 502); }
 }

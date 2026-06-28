@@ -2071,6 +2071,7 @@ function buildCommands(){
   assistants.forEach(a=>list.push({ic:a.emoji,label:"切换到："+a.name,run:()=>switchAssistant(a.id)}));
   return list;
 }
+function debounce(fn,delay=150){let t;return function(...a){clearTimeout(t);t=setTimeout(()=>fn.apply(this,a),delay)}}
 function openCmd(){cmdSel=0;$("#cmdkInput").value="";$("#cmask").classList.add("on");$("#cmdk").classList.add("on");renderCmd("");setTimeout(()=>$("#cmdkInput").focus(),30)}
 function closeCmd(){$("#cmask").classList.remove("on");$("#cmdk").classList.remove("on")}
 function renderCmd(q){
@@ -2183,7 +2184,7 @@ async function init(){
   $("#menubtn").onclick=()=>{const s=$("#side");s.classList.toggle("hide");const open=!s.classList.contains("hide");$("#sidemask").classList.toggle("on",open&&innerWidth<=760)};
   $("#sidemask").onclick=()=>{$("#side").classList.add("hide");$("#sidemask").classList.remove("on")};
   $("#cmdkbtn").onclick=openCmd;$("#cmask").onclick=closeCmd;
-  $("#cmdkInput").addEventListener("input",e=>{cmdSel=0;renderCmd(e.target.value)});
+  $("#cmdkInput").addEventListener("input",debounce(e=>{cmdSel=0;renderCmd(e.target.value)},120));
   $("#cmdkInput").addEventListener("keydown",e=>{
     if(e.isComposing||e.keyCode===229)return;
     if(e.key==="ArrowDown"){e.preventDefault();cmdSel=Math.min(cmdSel+1,cmdItems.length-1);renderCmd($("#cmdkInput").value)}

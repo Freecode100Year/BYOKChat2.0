@@ -3,10 +3,16 @@
 function json(d, s = 200) {
   return new Response(JSON.stringify(d), { status: s, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
 }
-function validBase(base) {
+function parseAllowedHosts(env) {
+  if (!env || !env.ALLOWED_MCP_HOSTS) return null;
+  return env.ALLOWED_MCP_HOSTS.split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+}
+function validBase(base, env) {
   let u; try { u = new URL(base); } catch { return false; }
   if (u.protocol !== "https:") return false;
   let h = u.hostname.toLowerCase();
+  const allowed = parseAllowedHosts(env);
+  if (allowed) return allowed.includes(h);
   if (h.startsWith("[") && h.endsWith("]")) h = h.slice(1, -1);
   if (h === "localhost" || h.endsWith(".local") || h.endsWith(".internal") || h.endsWith(".localhost")) return false;
   if (h === "::1" || h === "::" || /^(fc|fd|fe80|::ffff:)/i.test(h)) return false;
@@ -18,6 +24,14 @@ function validBase(base) {
   if (/^172\.(1[6-9]|2\d|3[01])\./.test(h)) return false;
   return true;
 }
+const ALLOWED_MCP_METHODS = new Set([
+  "initialize", "ping",
+  "tools/list", "tools/call",
+  "resources/list", "resources/read", "resources/templates/list",
+  "prompts/list", "prompts/get",
+  "completion/complete",
+  "notifications/initialized", "notifications/cancelled",
+]);
 export async function onRequestPost(context) {
   const { request, env } = context;
   if (env.ACCESS_PASSWORD) {
@@ -26,10 +40,15 @@ export async function onRequestPost(context) {
   }
   const url = (request.headers.get("x-mcp-url") || "").trim();
   if (!url) return json({ error: { message: "未指定 MCP 服务器地址。" } }, 400);
-  if (!validBase(url)) return json({ error: { message: "MCP 地址必须是公网 https，且不能是 localhost 或内网地址。" } }, 400);
+  if (!validBase(url, env)) return json({ error: { message: "MCP 地址必须是公网 https，且不能是 localhost 或内网地址。" } }, 400);
   const token = (request.headers.get("x-mcp-token") || "").trim();
   const session = (request.headers.get("x-mcp-session") || "").trim();
   const body = await request.text();
+  try {
+    const rpc = JSON.parse(body);
+    const method = rpc.method || "";
+    if (method && !ALLOWED_MCP_METHODS.has(method)) return json({ error: { message: `不支持的 MCP 方法：${method}` } }, 400);
+  } catch { return json({ error: { message: "MCP 请求体不是合法 JSON。" } }, 400); }
 
   const headers = { "content-type": "application/json", "accept": "application/json, text/event-stream" };
   if (token) headers.authorization = `Bearer ${token}`;
@@ -38,7 +57,7 @@ export async function onRequestPost(context) {
   let r;
   try {
     r = await fetch(url, { method: "POST", headers, body });
-  } catch (e) { return json({ error: { message: `连接 MCP 失败：${e.message}` } }, 502); }
+  } catch (e) { console.error("mcp upstream error:", e); return json({ error: { message: "连接 MCP 服务器失败，请检查地址与网络后重试。" } }, 502); }
 
   const ct = r.headers.get("content-type") || "";
   const newSession = r.headers.get("mcp-session-id") || "";
