@@ -1,0 +1,248 @@
+{
+  "kind": "Program",
+  "declarations": [
+    {
+      "kind": "FunctionDecl",
+      "name": "validBase",
+      "params": [
+        { "name": "base" },
+        { "name": "env" }
+      ],
+      "returnType": { "kind": "Bool" },
+      "effects": ["pure"],
+      "grant": [],
+      "body": [
+        {
+          "kind": "VarDecl",
+          "name": "u",
+          "value": {
+            "kind": "CallExpr",
+            "callee": "new URL",
+            "args": [
+              { "kind": "Ident", "name": "base" }
+            ]
+          }
+        },
+        {
+          "kind": "VarDecl",
+          "name": "protocol",
+          "type": { "kind": "String" },
+          "value": { "kind": "MemberExpr", "object": { "kind": "Ident", "name": "u" }, "field": "protocol" }
+        },
+        {
+          "kind": "IfStmt",
+          "cond": {
+            "kind": "BinaryExpr",
+            "op": "!=",
+            "left": { "kind": "Ident", "name": "protocol" },
+            "right": { "kind": "Literal", "valueType": "String", "value": "https:" }
+          },
+          "then": [
+            {
+              "kind": "ReturnStmt",
+              "value": { "kind": "Literal", "valueType": "Bool", "value": false }
+            }
+          ],
+          "else": []
+        },
+        {
+          "kind": "VarDecl",
+          "name": "hostname",
+          "type": { "kind": "String" },
+          "value": {
+            "kind": "CallExpr",
+            "callee": "u.hostname.toLowerCase",
+            "args": []
+          }
+        },
+        {
+          "kind": "IfStmt",
+          "cond": {
+            "kind": "BinaryExpr",
+            "op": "==",
+            "left": { "kind": "Ident", "name": "hostname" },
+            "right": { "kind": "Literal", "valueType": "String", "value": "localhost" }
+          },
+          "then": [
+            {
+              "kind": "ReturnStmt",
+              "value": { "kind": "Literal", "valueType": "Bool", "value": false }
+            }
+          ],
+          "else": []
+        },
+        {
+          "kind": "ReturnStmt",
+          "value": { "kind": "Literal", "valueType": "Bool", "value": true }
+        }
+      ]
+    },
+    {
+      "kind": "FunctionDecl",
+      "name": "onRequestPost",
+      "params": [
+        { "name": "context" }
+      ],
+      "returnType": { "kind": "Any" },
+      "effects": ["network"],
+      "grant": [],
+      "body": [
+        {
+          "kind": "VarDecl",
+          "name": "request",
+          "value": { "kind": "MemberExpr", "object": { "kind": "Ident", "name": "context" }, "field": "request" }
+        },
+        {
+          "kind": "VarDecl",
+          "name": "env",
+          "value": { "kind": "MemberExpr", "object": { "kind": "Ident", "name": "context" }, "field": "env" }
+        },
+        {
+          "kind": "VarDecl",
+          "name": "userKey",
+          "value": {
+            "kind": "CallExpr",
+            "callee": "request.headers.get",
+            "args": [
+              { "kind": "Literal", "valueType": "String", "value": "x-user-key" }
+            ]
+          }
+        },
+        {
+          "kind": "IfStmt",
+          "cond": {
+            "kind": "UnaryExpr",
+            "op": "!",
+            "operand": { "kind": "Ident", "name": "userKey" }
+          },
+          "then": [
+            {
+              "kind": "ReturnStmt",
+              "value": {
+                "kind": "CallExpr",
+                "callee": "new Response",
+                "args": [
+                  { "kind": "Literal", "valueType": "String", "value": "{\"error\": \"Missing API Key\"}" },
+                  {
+                    "kind": "StructLit",
+                    "typeName": "ResponseOptions",
+                    "fields": [
+                      { "name": "status", "value": { "kind": "Literal", "valueType": "Int", "value": 401 } }
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "else": []
+        },
+        {
+          "kind": "VarDecl",
+          "name": "base",
+          "value": {
+            "kind": "CallExpr",
+            "callee": "request.headers.get",
+            "args": [
+              { "kind": "Literal", "valueType": "String", "value": "x-base-url" }
+            ]
+          }
+        },
+        {
+          "kind": "VarDecl",
+          "name": "isValid",
+          "value": {
+            "kind": "CallExpr",
+            "callee": "validBase",
+            "args": [
+              { "kind": "Ident", "name": "base" },
+              { "kind": "Ident", "name": "env" }
+            ]
+          }
+        },
+        {
+          "kind": "IfStmt",
+          "cond": {
+            "kind": "UnaryExpr",
+            "op": "!",
+            "operand": { "kind": "Ident", "name": "isValid" }
+          },
+          "then": [
+            {
+              "kind": "ReturnStmt",
+              "value": {
+                "kind": "CallExpr",
+                "callee": "new Response",
+                "args": [
+                  { "kind": "Literal", "valueType": "String", "value": "{\"error\": \"Invalid Upstream Base URL\"}" },
+                  {
+                    "kind": "StructLit",
+                    "typeName": "ResponseOptions",
+                    "fields": [
+                      { "name": "status", "value": { "kind": "Literal", "valueType": "Int", "value": 400 } }
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "else": []
+        },
+        {
+          "kind": "VarDecl",
+          "name": "reqBody",
+          "value": {
+            "kind": "CallExpr",
+            "callee": "await request.text",
+            "args": []
+          }
+        },
+        {
+          "kind": "VarDecl",
+          "name": "upstreamUrl",
+          "value": {
+            "kind": "BinaryExpr",
+            "op": "+",
+            "left": { "kind": "Ident", "name": "base" },
+            "right": { "kind": "Literal", "valueType": "String", "value": "/chat/completions" }
+          }
+        },
+        {
+          "kind": "VarDecl",
+          "name": "upstream",
+          "value": {
+            "kind": "CallExpr",
+            "callee": "await fetch",
+            "args": [
+              { "kind": "Ident", "name": "upstreamUrl" },
+              {
+                "kind": "StructLit",
+                "typeName": "FetchOptions",
+                "fields": [
+                  { "name": "method", "value": { "kind": "Literal", "valueType": "String", "value": "POST" } },
+                  { "name": "body", "value": { "kind": "Ident", "name": "reqBody" } }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "kind": "ReturnStmt",
+          "value": {
+            "kind": "CallExpr",
+            "callee": "new Response",
+            "args": [
+              { "kind": "MemberExpr", "object": { "kind": "Ident", "name": "upstream" }, "field": "body" },
+              {
+                "kind": "StructLit",
+                "typeName": "ResponseOptions",
+                "fields": [
+                  { "name": "status", "value": { "kind": "MemberExpr", "object": { "kind": "Ident", "name": "upstream" }, "field": "status" } }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
