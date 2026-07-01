@@ -1485,13 +1485,28 @@ function renderProvList(){
       <textarea class="pmodels" placeholder="gpt-4o">${esc((p.models||[]).join("\n"))}</textarea>
       <label class="plab">每个 Key 的 token 额度（默认值；用满即轮替到下一个 Key）</label>
       <input class="plimit" type="number" min="1" step="1000" value="${p.tokenLimit||100000}"/>
-      <div class="provusage" data-pidx="${idx}"></div>`;
+      <div class="provusage" data-pidx="${idx}"></div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+        <button type="button" class="ptest ghostbtn" style="padding:4px 8px;font-size:12px">测试连接</button>
+        <span class="ptest-status" style="font-size:12px;color:var(--desc)"></span>
+      </div>`;
     el.querySelector(".pdel").onclick=()=>{
       if(settings.providers.length<=1){alert("至少保留一个供应商。");return}
       if(!confirm("删除这个供应商？"))return;
       collectProviders();settings.providers=settings.providers.filter(x=>x!==cloudProvs[idx]);saveSettings();renderProvList();refreshModels();
     };
     el.querySelector(".pkeys").addEventListener("input",()=>{collectProviders();renderProvUsage()});
+    el.querySelector(".ptest").onclick=()=>{
+      const baseUrl = normBase(el.querySelector(".pbase").value);
+      const keys = el.querySelector(".pkeys").value.trim();
+      const models = el.querySelector(".pmodels").value.split("\n").map(s=>s.trim()).filter(Boolean);
+      const firstKey = keys.split("\n")[0].split("|")[0].trim();
+      const firstModel = models[0] || "gpt-4o-mini";
+      const statusEl = el.querySelector(".ptest-status");
+      if(!baseUrl){ statusEl.textContent = "请填地址 ❌"; statusEl.style.color = "#f56565"; return; }
+      if(!firstKey){ statusEl.textContent = "请填 Key ❌"; statusEl.style.color = "#f56565"; return; }
+      testConnection(baseUrl, firstKey, firstModel, false, statusEl);
+    };
     box.appendChild(el);
   });
   renderProvUsage();
@@ -1541,9 +1556,22 @@ function renderLocalList(){
     const pre=LOCAL_PRESETS.find(lp=>lp.name===p.name);
     const hint=pre?pre.hint:"确保服务已启动并允许跨域";
     const box=document.createElement("div");box.className="localbox on";box.dataset.pid=p.id;
-    box.innerHTML=`<div class="localhead"><input class="lname" value="${esc(p.name)}" placeholder="名称" /><button type="button" class="ltest" title="检测地址并自动读取模型">检测</button><button type="button" class="ldel" title="移除">✕</button></div><input class="localaddr" value="${esc(p.baseUrl)}" placeholder="http://127.0.0.1:端口/v1" /><input class="localmodels" value="${esc((p.models||[]).join(", "))}" placeholder="模型名（逗号分隔）" /><div class="localhint">${esc(hint)}</div>`;
+    box.innerHTML=`<div class="localhead"><input class="lname" value="${esc(p.name)}" placeholder="名称" /><button type="button" class="ltest" title="检测地址并自动读取模型">读取模型</button><button type="button" class="ldel" title="移除">✕</button></div><input class="localaddr" value="${esc(p.baseUrl)}" placeholder="http://127.0.0.1:端口/v1" /><input class="localmodels" value="${esc((p.models||[]).join(", "))}" placeholder="模型名（逗号分隔）" />
+    <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+      <button type="button" class="lc-test ghostbtn" style="padding:3px 6px;font-size:11px">测试连接</button>
+      <span class="lc-test-status" style="font-size:11px;color:var(--desc)"></span>
+    </div>
+    <div class="localhint">${esc(hint)}</div>`;
     box.querySelector(".ltest").onclick=()=>detectLocalModels(box);
     box.querySelector(".ldel").onclick=()=>{box.remove()};
+    box.querySelector(".lc-test").onclick=()=>{
+      const baseUrl = normBase(box.querySelector(".localaddr").value);
+      const models = box.querySelector(".localmodels").value.split(/[,，\n]/).map(s=>s.trim()).filter(Boolean);
+      const firstModel = models[0] || "";
+      const statusEl = box.querySelector(".lc-test-status");
+      if(!baseUrl){ statusEl.textContent = "请填地址 ❌"; statusEl.style.color = "#f56565"; return; }
+      testConnection(baseUrl, "", firstModel, true, statusEl);
+    };
     list.appendChild(box);
   });
 }
@@ -1570,6 +1598,60 @@ async function detectLocalModels(box){
     }catch(e){lastErr=e.message||String(e)}
   }
   flash("检测失败："+lastErr+"。确认服务已启动，并允许 "+location.origin+" 跨域访问");
+}
+async function testConnection(baseUrl, apiKey, model, isDirect, statusEl) {
+  statusEl.textContent = "正在连接...";
+  statusEl.style.color = "var(--desc)";
+  const body = {
+    model: model || "gpt-4o-mini",
+    messages: [{ role: "user", content: "ping" }],
+    max_tokens: 1
+  };
+  try {
+    let res;
+    if (isDirect) {
+      res = await fetch(`${baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(apiKey ? { "authorization": `Bearer ${apiKey}` } : {})
+        },
+        body: JSON.stringify(body)
+      });
+    } else {
+      const headers = {
+        "content-type": "application/json",
+        "x-base-url": baseUrl,
+        "x-user-key": apiKey
+      };
+      if (CFG.needPassword && settings.accesspwd) {
+        headers["x-access-password"] = settings.accesspwd;
+      }
+      res = await fetch("/api/chat", {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body)
+      });
+    }
+    if (res.ok) {
+      statusEl.textContent = "连接成功 ✅";
+      statusEl.style.color = "#48bb78";
+    } else {
+      let msg = "连接失败";
+      try {
+        const d = await res.json();
+        if (d.error) msg = typeof d.error === "string" ? d.error : (d.error.message || d.error);
+      } catch {
+        const t = await res.text();
+        if (t) msg = t.slice(0, 100);
+      }
+      statusEl.textContent = "失败: " + msg + " ❌";
+      statusEl.style.color = "#f56565";
+    }
+  } catch (err) {
+    statusEl.textContent = "出错: " + err.message + " ❌";
+    statusEl.style.color = "#f56565";
+  }
 }
 function addLocalPreset(i){
   const pre=LOCAL_PRESETS[i];if(!pre)return;
