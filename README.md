@@ -4,6 +4,10 @@
 
 **自托管 · 匿名 · 自带 Key 的多供应商 AI 聊天站**
 
+🔗 **在线访问地址**：[byok-chat.pages.dev](https://byok-chat.pages.dev)
+
+![BYOK Chat 界面截图](screenshot.png)
+
 ## 📢 最新更新与 Bug 修复 (2026-07-01)
 
 ### 🆕 新增功能
