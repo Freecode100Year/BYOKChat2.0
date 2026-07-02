@@ -16,8 +16,8 @@
           "kind": "VarDecl",
           "name": "u",
           "value": {
-            "kind": "CallExpr",
-            "callee": "new URL",
+            "kind": "NewExpr",
+            "callee": "URL",
             "args": [
               { "kind": "Ident", "name": "base" }
             ]
@@ -119,8 +119,8 @@
             {
               "kind": "ReturnStmt",
               "value": {
-                "kind": "CallExpr",
-                "callee": "new Response",
+                "kind": "NewExpr",
+                "callee": "Response",
                 "args": [
                   { "kind": "Literal", "valueType": "String", "value": "{\"error\": \"Missing API Key\"}" },
                   {
@@ -170,8 +170,8 @@
             {
               "kind": "ReturnStmt",
               "value": {
-                "kind": "CallExpr",
-                "callee": "new Response",
+                "kind": "NewExpr",
+                "callee": "Response",
                 "args": [
                   { "kind": "Literal", "valueType": "String", "value": "{\"error\": \"Invalid Upstream Base URL\"}" },
                   {
@@ -191,9 +191,12 @@
           "kind": "VarDecl",
           "name": "reqBody",
           "value": {
-            "kind": "CallExpr",
-            "callee": "await request.text",
-            "args": []
+            "kind": "AwaitExpr",
+            "expr": {
+              "kind": "CallExpr",
+              "callee": "request.text",
+              "args": []
+            }
           }
         },
         {
@@ -210,26 +213,29 @@
           "kind": "VarDecl",
           "name": "upstream",
           "value": {
-            "kind": "CallExpr",
-            "callee": "await fetch",
-            "args": [
-              { "kind": "Ident", "name": "upstreamUrl" },
-              {
-                "kind": "StructLit",
-                "typeName": "FetchOptions",
-                "fields": [
-                  { "name": "method", "value": { "kind": "Literal", "valueType": "String", "value": "POST" } },
-                  { "name": "body", "value": { "kind": "Ident", "name": "reqBody" } }
-                ]
-              }
-            ]
+            "kind": "AwaitExpr",
+            "expr": {
+              "kind": "CallExpr",
+              "callee": "fetch",
+              "args": [
+                { "kind": "Ident", "name": "upstreamUrl" },
+                {
+                  "kind": "StructLit",
+                  "typeName": "FetchOptions",
+                  "fields": [
+                    { "name": "method", "value": { "kind": "Literal", "valueType": "String", "value": "POST" } },
+                    { "name": "body", "value": { "kind": "Ident", "name": "reqBody" } }
+                  ]
+                }
+              ]
+            }
           }
         },
         {
           "kind": "ReturnStmt",
           "value": {
-            "kind": "CallExpr",
-            "callee": "new Response",
+            "kind": "NewExpr",
+            "callee": "Response",
             "args": [
               { "kind": "MemberExpr", "object": { "kind": "Ident", "name": "upstream" }, "field": "body" },
               {
